@@ -133,6 +133,29 @@ def correct_mispellings(pub_str, to_remove, to_replace):
     return standardize_whitespace(trans_word)
 
 
+def long_form_date(dt_str):
+    # change string dates to be YYYY-YYYY instead of YYYY-YY
+    if pd.isnull(dt_str):
+        return dt_str
+    # first try to match a full four year date
+    m = re.match(r'(\d{4})-(\d{4})', dt_str)
+    if m:
+        g = m.groups()
+        return '{0}-{1}'.format(g[0], g[1])
+    # otherise, check for a 1998-90 form date
+    m = re.match(r'(\d{4})-(\d{2})', dt_str)
+    if m:
+        g = m.groups()
+        return '{0}-19{1}'.format(g[0], g[1])
+    m = re.match(r'(\d{4})', dt_str)
+    if m:
+        g = m.groups()
+        return '{0}'.format(g[0])
+    # otherwise this is a weird edge case
+    print dt_str
+    return np.nan
+
+
 # college name standardization fnc
 def clean_std_college_name(college_raw, to_remove, to_replace):
     # need to change 'college to university' unless Boston college or BU remove ANDS, AT, THE expand UCLA to UCAL, UC Davis etc.
@@ -170,13 +193,13 @@ def clean_med_school(raw_str):
     # check for Medical college of virginia and SUNY BUFFALO
     if raw_str.startswith('SUNY '):
         return 'SUNY'
-    if 'KECK' in raw_str:
-        return 'USC KECK'
-    if 'NEW YORK UNIVERSITY' in raw_str:
-        return 'NYU'
-    if 'BAYLOR' in raw_str:
-        return 'BAYLOR'
+    special_cases = [('KECK', 'USC KECK'), ('N Y U', 'NYU'), ('NEW YORK UNIVERSITY', 'NYU'), ('COLLEGE OF PHYSICIANS', 'COLUMBIA'),
+                     ('STATE UNIVERSITY OF NEW', 'SUNY'), (' VA', 'VIRGINIA'), (' PA', 'PENNSLYVANIA'), (' MO', 'MISSOURI'),
+                     ('NEW YORK STATE', 'SUNY'), ('BAYLOR', 'BAYLOR'), ('JEFFERSON', 'JEFFERSON MEDICAL')]
     # check for UNIVERISITY OF BLAH pattern
+    for check, to_return in special_cases:
+        if check in raw_str:
+            return to_return
     m = re.search(r'UNIVERSITY OF ([A-Z]+)', raw_str)
     if m:
         return m.groups()[0]
