@@ -23,14 +23,22 @@ def remove_punc(pub_str):
     nonelst = ' '*len(string.punctuation)
     fn = trans_remov_punc(string.punctuation, nonelst)
     new_str = fn(pub_str)
+    nonelst = ' '*len(string.digits)
+    fn = trans_remov_punc(string.digits, nonelst)
+    new_str2 = fn(new_str)
     # standardize spaces
-    return standardize_whitespace(new_str)
+    return standardize_whitespace(new_str2)
 
 
 def clean_names(name):
     # clean names, remove unicode, remove punctuation, uppercase, remove excess spaces
     # if name is missing, return null
-    if pd.isnull(name):
+    if pd.isnull(name) or name is None or name == '':
+        return np.nan
+    try:
+        # try to get rid of the annoying blank spaces in .dta files
+        l_str = name[0]
+    except IndexError:
         return np.nan
     # uppercase
     # need to cast because str may be in unicode
@@ -40,6 +48,8 @@ def clean_names(name):
 
 def has_suffix(raw_last_name):
     # a boolean fnc to identify which rows may have a suffix
+    if pd.isnull(raw_last_name):
+        return False
     last_lst = raw_last_name.split(' ')
     if len(last_lst) == 1:
         # if no white spaces in last name, only 1 word, so no suffix
@@ -101,7 +111,11 @@ def str_sim(row, row1_name, row2_name):
         return 0
     clean_str1 = clean_names(str1)
     clean_str2 = clean_names(str2)
-    return difflib.SequenceMatcher(None, clean_str1, clean_str2).ratio()
+    try:
+        return difflib.SequenceMatcher(None, clean_str1, clean_str2).ratio()
+    except TypeError:
+        print clean_str2, clean_str1, str2, str1
+
 
 
 def replace_last_name(last_name, mispellings_dict):
@@ -193,18 +207,76 @@ def clean_med_school(raw_str):
     # check for Medical college of virginia and SUNY BUFFALO
     if raw_str.startswith('SUNY '):
         return 'SUNY'
-    special_cases = [('KECK', 'USC KECK'), ('N Y U', 'NYU'), ('NEW YORK UNIVERSITY', 'NYU'), ('COLLEGE OF PHYSICIANS', 'COLUMBIA'),
-                     ('STATE UNIVERSITY OF NEW', 'SUNY'), (' VA', 'VIRGINIA'), (' PA', 'PENNSLYVANIA'), (' MO', 'MISSOURI'),
-                     ('NEW YORK STATE', 'SUNY'), ('BAYLOR', 'BAYLOR'), ('JEFFERSON', 'JEFFERSON MEDICAL')]
+    special_cases = [
+                    ('DOWNSTATE', 'SUNY DOWNSTATE'), ('UPSTATE', 'SUNY UPSTATE'), ('BUFFALO', 'SUNY BUFFALO'),
+                    ('BROOKLYN', 'SUNY BROOKLYN'),
+                    ('MOUNT SINAI', 'ICAHN SCHOOL OF MEDICINE'),
+                     ('MT SINAI', 'ICAHN SCHOOL OF MEDICINE'),
+                     ('UNIVERSITY OF MO', 'MISSOURI'),
+                     ('UNIVERSITY OF VA', 'VIRGINIA'),
+                     ('UNIVERSITY OF ALA', 'ALABAMA'),
+                     ('NORTH CAROLINA', 'NORTH CAROLINA'), ('CHAPEL HILL', 'NORTH CAROLINA'),
+                     ('UNIVERSITY OF N C', 'NORTH CAROLINA'),
+                     # THe chicago med school not the same as uchicago
+                     ('THE CHICAGO MEDICAL SCHOOL',  'ROSALIND FRANKLIN'), ('ROSALIND FRANKLIN',  'ROSALIND FRANKLIN'),
+                     # UMiami also known as Leonard Miller School
+                     ('MIAMI', 'MIAMI'),
+                     ('TEXAS SOUTHWESTERN', 'TEXAS SOUTHWESTERN'),
+                     # UMDJ and Rutgers now the same school
+                     ('COLLEGE OF MEDICINE AND DENTISTRY OF NEW JERSEY', 'RUTGERS'), ('UMDNJ NEW JERSEY', 'RUTGERS'),
+                     ('GEORGE WASHINGTON', 'GEORGE WASHINGTON'),
+                     # spellings for UW St Louis
+                     ('ST LOUIS', 'WASHINGTON'), ('SAINT LOUIS', 'WASHINGTON'), ('WASHINGTON UNIVERSITY', 'WASHINGTON'),
+                     ('UNIVERSITY OF MINNESOTA', 'MINNESOTA'),
+                     ('KECK', 'USC KECK'),  ('SOUTHERN CALIFORNIA', 'USC KECK'),
+                     ('OF SOUTH CAROLINA', 'SOUTH CAROLINA'),
+                     ('N Y U', 'NYU'), ('NEW YORK UNIVERSITY', 'NYU'), ('NEW YORK MEDICAL COLLEGE', 'NYU'),
+                     ('COLLEGE OF P S', 'COLUMBIA'), ('COLLEGE OF PHYSICIANS', 'COLUMBIA'),
+                     ('WEILL', 'CORNELL'),
+                     ('BAYLOR', 'BAYLOR'), ('JEFFERSON', 'JEFFERSON MEDICAL'), ('PRITZKER', 'UNIVERSITY OF CHICAGO'),
+                     ('MARQUETTE', 'WISCONSIN'),
+                     ('PERELMAN SCHOOL', 'PENNSLYVANIA'),
+                     ('UNIVERSITY OF PENNSLYVANIA', 'PENNSLYVANIA'),
+                     ('UNIVERSITY OF PENN', 'PENNSLYVANIA'),
+                     ('BOWMAN GRAY', 'WAKE FOREST'), ('OREGON HEALTH', 'OREGON'),
+                     ('HERSHEY ', 'PENNSLYVANIA STATE'),
+                     ('IOWA ', 'IOWA'),  (' IOWA', 'IOWA'),
+                     ('UNIVERSITY OF CHICAGO', 'CHICAGO'),
+                     ('OF TOLEDO', 'TOLEDO'),
+                     ('CWRU', 'CASE WESTERN'), ('WESTERN RESERVE', 'CASE WESTERN'),
+                     ('U W SCHOOL OF MEDICINE', 'WASHINGTON'), ('SEATTLE', 'WASHINGTON'),
+                     # SUNY Med Schools
+                     ('STATE UNIVERSITY OF NEW', 'SUNY'), ('N Y DOWNSTATE', 'SUNY DOWNSTATE'), ('JACOBS SCHOOL', 'SUNY'),
+                     ('NEW YORK STATE', 'SUNY'), ('STATE OF NEW YORK', 'SUNY'), ('DOWNSTATE MEDICAL CENTER', 'SUNY DOWNSTATE'),
+                     ('UPSTATE MEDICAL', 'SUNY UPSTATE'), ('DOWNSTATE S U N Y', 'SUNY DOWNSTATE'),
+                     # University of california cases
+                     ('U C DAVIS', 'UC DAVIS'),
+                     ('LOS ANGELES', 'UCLA'),  ('SAN FRANCISCO', 'UCSF'), ('SAN DIEGO', 'UCSD'), ('UNIVERSITY OF CAL', 'UC'),
+                     ('U C S F MEDICAL', 'UCSF'), ('CALIFORNIA DAVIS', 'UC DAVIS'), ('UCD UNIVERSITY OF CALIFORNIA', 'UC DAVIS'),
+                     # arbitrarily assign unassign UCAL
+                     ('UNIVERSITY CALIFORNIA', 'UCSF'), ('UNIVERSITY OF CALIFORNIA SCHOOL OF MEDICINE', 'UCSF'),
+                     # other/none/missing
+                     ('None', np.nan), ('UNKNOWN', np.nan)]
     # check for UNIVERISITY OF BLAH pattern
     for check, to_return in special_cases:
         if check in raw_str:
             return to_return
-    m = re.search(r'UNIVERSITY OF ([A-Z]+)', raw_str)
+    # try university of Blah School of medicine
+    m = re.search(r'^UNIVERSITY OF (\D+) SCHOOL OF MEDIC', raw_str)
+    if m:
+        return m.groups()[0]
+    m = re.search(r'^UNIVERSITY OF (\D+) COLLEGE OF MEDICINE', raw_str)
+    if m:
+        return m.groups()[0]
+    m = re.search(r'^UNIVERSITY OF (\D+)', raw_str)
     if m:
         return m.groups()[0]
     # Try the Yale University Medical ... pattern
     m = re.search(r'^(\D+)\s+UNIVERSITY', raw_str)
+    if m:
+        return m.groups()[0]
+    # Search for college of medidcine
+    m = re.search(r'^([A-Z]+) COLLEGE OF MEDICINE', raw_str)
     if m:
         return m.groups()[0]
     # Search for Medical college of
@@ -212,7 +284,7 @@ def clean_med_school(raw_str):
     if m:
         return m.groups()[0]
     # BLAH MEDICAL SCHOOL/COLLEGE
-    m = re.search(r'(\D+)\s*\bMEDICAL\b\s\bSCHOOL\b|(\D+)\s*\bMEDICAL\b\s\bCOLLEGE\b', raw_str)
+    m = re.search(r'^(\D+)\s* MEDICAL', raw_str)
     if m:
         return m.groups()[0]
     # BLAH SCHOOL OF MEDICINE
@@ -221,7 +293,6 @@ def clean_med_school(raw_str):
         return m.groups()[0]
     # if string doesn't match existing pattern, try medical school pattern
     else:
-        print raw_str
         return raw_str
 
 
