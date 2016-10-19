@@ -1,4 +1,5 @@
 import difflib
+from fuzzywuzzy import fuzz
 import funcy
 import pandas as pd
 import numpy as np
@@ -20,6 +21,8 @@ def standardize_whitespace(pub_str):
 
 def remove_punc(pub_str):
     # function to remove punctuation
+    # make sure string isn't unicode
+    pub_str = str(pub_str)
     nonelst = ' '*len(string.punctuation)
     fn = trans_remov_punc(string.punctuation, nonelst)
     new_str = fn(pub_str)
@@ -39,6 +42,7 @@ def clean_names(name):
         # try to get rid of the annoying blank spaces in .dta files
         l_str = name[0]
     except IndexError:
+        print name
         return np.nan
     # uppercase
     # need to cast because str may be in unicode
@@ -112,10 +116,10 @@ def str_sim(row, row1_name, row2_name):
     clean_str1 = clean_names(str1)
     clean_str2 = clean_names(str2)
     try:
-        return difflib.SequenceMatcher(None, clean_str1, clean_str2).ratio()
+        # use partial ratio because important to note if one string inside another
+        return fuzz.partial_ratio(clean_str1, clean_str2)
     except TypeError:
         print clean_str2, clean_str1, str2, str1
-
 
 
 def replace_last_name(last_name, mispellings_dict):
