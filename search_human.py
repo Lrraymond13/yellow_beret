@@ -46,17 +46,7 @@ class Driver():
         except (NoSuchElementException, TimeoutException) as t:
             print 'Results page error {}'.format(last_name)
             return None
-
-    # def navigate_to_bio(self, res_str):
-    #     try:
-    #         WebDriverWait(self.driver, 5)
-    #         WebDriverWait(self.driver, 10).until(
-    #             lambda x: x.find_element_by_id('biographies_viewall'))
-    #         res = self.driver.find_element_by_id('biographies_viewall')
-    #         res.find_element_by_class_name('docLink').click()
-    #     except (NoSuchElementException, TimeoutException) as e:
-    #         print 'No biography results for {}'.format(res_str)
-
+        
     def select_link(self, name, last_name):
         try:
             print name
