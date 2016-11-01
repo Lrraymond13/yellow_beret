@@ -4,15 +4,17 @@ from selenium.common.exceptions import NoSuchElementException, TimeoutException
 from selenium.webdriver.support.ui import WebDriverWait
 
 BIO_URL = 'http://libraries.mit.edu/get/brc'
-
+COMMON_NONMEDICAL_OCCS = ('Philanthropist', 'Writer', 'Artist', 'Actor', 'Actress', 'Politician',
+                          'Investment banker', 'Financier', 'Physicist', 'Novelist',
+                          'Car dealer', 'Rock singer', 'Baseball player', 'Engineer', 'Executive', 'Educator')
 
 class Driver():
     "web driver to search for people by name"
 
-    def __init__(self, url=None):
+    def __init__(self, url=BIO_URL):
         self.driver = webdriver.Firefox()
-        self.url = BIO_URL if url is None else url
-        self.driver.get(url)
+        self.url = url
+        print self.url
 
     def get_person_results(self, text_name):
         # navigate to the search bar
@@ -31,6 +33,28 @@ class Driver():
             print 'No results found for {}'.format(text_name)
             return None
 
+    def filter_results_str(self, str, last_name):
+        # str generally comes in like Adler, Solomon Stanley Scientist May 26, 1945
+        #may also hae a string with just occupation
+        # Philanthropist June 23, 1894, November 14, 1975
+        # first, check that string startswith last name
+        if not str.startswith(last_name.title()):
+            return False
+        # try to parse occupation as -4 item
+        ls_str = str.split(' ')
+        if len(ls_str) < 4:
+            # this string probably only contains names
+            return True
+        occ1 = ls_str[-4]
+        has_digit = any(i.isdigit() for i in occ1)
+        if has_digit:
+            # then this person must have a death date, so try again
+            occ1 = ls_str[-7]
+        if occ1 in COMMON_NONMEDICAL_OCCS:
+            return False
+        # lots of other reasons this may miss people, but rather scrape too many than too few
+        return True
+
     def parse_results(self, last_name):
         try:
             WebDriverWait(self.driver, 10).until(
@@ -38,18 +62,17 @@ class Driver():
             res = self.driver.find_element_by_id('results')
             res2 = res.find_element_by_tag_name('tbody')
             list_res = funcy.remove(lambda x: x.startswith('See '), res2.text.split('\n'))
-            # check for scientists
-            possible_matches = filter(lambda x: 'Scientist' in x or 'Doctor' in x or x.endswith('ist'), list_res)
-            # make sure all matches start with last name
-            propcase_name = last_name.title()
-            return funcy.filter(lambda x: x.startswith(propcase_name), possible_matches)
+            # check for scientists, surgeons, doctors and other ists
+            possible_matches = filter(lambda x: self.filter_results_str(x, last_name), list_res)
+            print possible_matches
+            return possible_matches
         except (NoSuchElementException, TimeoutException) as t:
             print 'Results page error {}'.format(last_name)
             return None
-        
+
     def select_link(self, name, last_name):
         try:
-            print name
+            print 'Selecting link for {}'.format(name)
             # first, click on entry of the person
             WebDriverWait(self.driver, 10).until(
                 lambda x: x.find_element_by_partial_link_text(name))
@@ -67,8 +90,15 @@ class Driver():
     def handle_multiple_results_text(self, res_str):
         # get name portion
         try:
-            link_text = ' '.join(res_str.split(' ')[:-4])
+            # if there are no digits in the res_str, then res_strin only contains a name
+            has_digit = any(i.isdigit() for i in res_str)
+            if has_digit:
+                link_text = ' '.join(res_str.split(' ')[:-4])
+            else:
+                link_text = res_str
+            print link_text
             last_name = res_str.split(',')[0]
+            print 'generated link selection text {} last name {}'.format(link_text, last_name)
             self.select_link(link_text, last_name)
         except (NoSuchElementException, TimeoutException) as e:
             print 'handle multiple results failure {}'.format(res_str)
@@ -112,9 +142,14 @@ class Driver():
             # multiple results, note how many results returned and download all bios
             print 'Multiple results'
             possibles = self.parse_results(last_name)
-            txt = map(self.download_multi_results, possibles)
-            # return shape is num results, name searched and list of text results
-            txt = zip(possibles, txt)
+            print possibles
+            # handle case where all possibles are unrelated
+            if possibles is not None and len(possibles) > 0:
+                txt = map(self.download_multi_results, possibles)
+                # return shape is num results, name searched and list of text results
+                txt = zip(possibles, txt)
+            else:
+                txt = None
         return (num_res, name, txt)
 
 

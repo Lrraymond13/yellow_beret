@@ -66,9 +66,9 @@ def get_dt_sim(row):
 
 def check_match(row):
     # address and application year match
-    if row['clean_last_name_sim'] < .9:
+    if row['clean_last_name_sim'] < 90:
         return 0
-    if not pd.isnull(row['clean_first_name_sim']) and row['clean_first_name_sim'] < .5:
+    if not pd.isnull(row['clean_first_name_sim']) and row['clean_first_name_sim'] < 50:
         return 0
     if row['application_year_sim'] == 0 and row['address_sim'] > 60:
         return 1
