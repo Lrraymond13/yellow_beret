@@ -218,6 +218,7 @@ def clean_med_school(raw_str, special_cases=MEDSCHOOL_MAPPING):
         print raw_str
         return raw_str
 
+
 def clean_med_school_old(raw_med_school):
     # cleanup med school string so we can do useful string comparison on it
     # if contains COLUMBIA, return COLUMBIA
