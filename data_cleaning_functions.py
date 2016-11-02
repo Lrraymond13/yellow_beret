@@ -198,21 +198,58 @@ def construct_medschool_mapping(filename=MEDSCHOOL_FILENAME):
     return name_key.set_index('RAW_STRING')
 
 
+def _locate_str(df, raw_str, colname, matching_fnc):
+    if pd.isnull(raw_str):
+        return np.nan
+    try:
+        val = df.loc[raw_str, colname]
+        if isinstance(str, val):
+            return val
+        return val[0]
+    except (KeyError, TypeError) as e:
+        # do string sim match
+        mask = df.index.map(matching_fnc)
+        if mask.any():
+            return df.loc[mask, colname][0]
+        return np.nan
+
+
 def _clean_med_school(raw_str, mapping=None):
     # note mapping should be a pandas df
     # with index as str values to search and medical school columns as std. name
-    if pd.isnull(raw_str):
-        return np.nan
     # for speed, mapping should not be none
     if mapping is None:
         mapping = construct_medschool_mapping()
     # check for Medical college of virginia and SUNY BUFFALO
-    raw_str = raw_str.strip().upper()
-    try:
-        return mapping.loc[raw_str, 'MEDICAL_SCHOOL']
-    except KeyError as e:
+    if pd.isnull(raw_str):
+        return raw_str
+    raw_str = clean_names(raw_str.strip().upper())
+    is_sim = lambda x: x in raw_str
+    # check if its already clean
+    is_clean = mapping[mapping['MEDICAL_SCHOOL']==raw_str].shape[0]
+    if is_clean > 0:
+        return raw_str
+    val = _locate_str(mapping, raw_str, 'MEDICAL_SCHOOL', is_sim)
+    if pd.isnull(val):
         print raw_str
         return raw_str
+    return val
 
 
-clean_med_school = funcy.func_partial(_clean_med_school, mapping=construct_medschool_mapping())
+def _medschool_foreign(raw_str, mapping=None):
+    if pd.isnull(raw_str):
+        return 0
+    raw_str = clean_names(raw_str.strip().upper())
+    is_sim = lambda x: x in raw_str
+    cleaned = mapping[mapping['MEDICAL_SCHOOL']==raw_str]
+    if cleaned.shape[0] > 0:
+        return cleaned['IS_FOREIGN'][0]
+    val = _locate_str(mapping, raw_str, 'IS_FOREIGN', is_sim)
+    if pd.isnull(val):
+        return 0
+    return int(val)
+
+
+DEFAULT_MAPPING = construct_medschool_mapping()
+clean_med_school = funcy.rpartial(_clean_med_school, DEFAULT_MAPPING)
+is_foreign_med_school = funcy.rpartial(_medschool_foreign, DEFAULT_MAPPING)
