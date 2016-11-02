@@ -1,4 +1,4 @@
-import difflib
+import os
 from fuzzywuzzy import fuzz
 import funcy
 import pandas as pd
@@ -6,7 +6,7 @@ import numpy as np
 import re
 import string
 
-from med_school_mapping import MEDSCHOOL_MAPPING
+from dev import MEDSCHOOL_FILENAME, STD_DIR
 
 def trans_remov_punc(to_change, change_to):
     # removes specified punctuation using string maketrans (very fast, C lookups)
@@ -193,15 +193,26 @@ def clean_std_college_name(college_raw, to_remove, to_replace):
     return standardize_whitespace(base_word)
 
 
-def clean_med_school(raw_str, special_cases=MEDSCHOOL_MAPPING):
-    if pd.isnull(raw_str) or raw_str == 'OTHER':
+def construct_medschool_mapping(filename=MEDSCHOOL_FILENAME):
+    name_key = pd.read_excel(os.path.join(STD_DIR, filename))
+    return name_key.set_index('RAW_STRING')
+
+
+def _clean_med_school(raw_str, mapping=None):
+    # note mapping should be a pandas df
+    # with index as str values to search and medical school columns as std. name
+    if pd.isnull(raw_str):
         return np.nan
+    # for speed, mapping should not be none
+    if mapping is None:
+        mapping = construct_medschool_mapping()
     # check for Medical college of virginia and SUNY BUFFALO
     raw_str = raw_str.strip().upper()
-    for check, to_return in special_cases:
-        if check in raw_str:
-            return to_return
-    else:
+    try:
+        return mapping.loc[raw_str, 'MEDICAL_SCHOOL']
+    except KeyError as e:
         print raw_str
         return raw_str
 
+
+clean_med_school = funcy.func_partial(_clean_med_school, mapping=construct_medschool_mapping())
