@@ -8,6 +8,7 @@ import string
 
 from dev import MEDSCHOOL_FILENAME, STD_DIR
 
+
 def trans_remov_punc(to_change, change_to):
     # removes specified punctuation using string maketrans (very fast, C lookups)
     #returns partially evaluated fnc
@@ -223,8 +224,9 @@ def _clean_med_school(raw_str, mapping=None):
     # check for Medical college of virginia and SUNY BUFFALO
     if pd.isnull(raw_str):
         return raw_str
-    raw_str = clean_names(raw_str.strip().upper())
-    is_sim = lambda x: x in raw_str
+    # cast unicode to ascii and skip spaces
+    raw_str = clean_names(str(raw_str).strip().upper())
+    is_sim = lambda x: str(x) in raw_str
     # check if its already clean
     is_clean = mapping[mapping['MEDICAL_SCHOOL']==raw_str].shape[0]
     if is_clean > 0:
@@ -239,7 +241,8 @@ def _clean_med_school(raw_str, mapping=None):
 def _medschool_foreign(raw_str, mapping=None):
     if pd.isnull(raw_str):
         return 0
-    raw_str = clean_names(raw_str.strip().upper())
+    # cast unicode to ascii and skip spaces
+    raw_str = clean_names(str(raw_str).strip().upper())
     is_sim = lambda x: x in raw_str
     cleaned = mapping[mapping['MEDICAL_SCHOOL']==raw_str]
     if cleaned.shape[0] > 0:
