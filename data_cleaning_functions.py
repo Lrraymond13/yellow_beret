@@ -60,7 +60,7 @@ def has_suffix(raw_last_name):
     if len(last_lst) == 1:
         # if no white spaces in last name, only 1 word, so no suffix
         return False
-    suffixes = ['JR', 'SR', 'I', 'II', 'III', 'IV', 'V', 'VI']
+    suffixes = ['JR', 'SR', 'I', 'II', 'III', 'IV', 'V', 'VI', 'JR.', 'SR.']
     # want to differentiate between suffix (JR, SR, I, II, III, IV, V)
     # between last names with multiple parts (ex. st john)
     # check if last word in list
